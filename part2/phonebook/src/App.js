@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Filter from './components/Filter';
 import NewContactForm from './components/NewContactForm';
 import Contacts from './components/Contacts';
+import Notification from './components/Notification';
 import contactService from './services/contact';
 
 function App() {
@@ -11,6 +12,8 @@ function App() {
     number: '',
   });
   const [filteredPersons, setFilteredPersons] = useState([]);
+  const [message, setMessage] = useState(null);
+  const [notification, setNotification] = useState('');
 
   const personsToShow = filteredPersons.length > 0 ? filteredPersons : persons;
 
@@ -42,12 +45,29 @@ function App() {
                 person.id === personExists.id ? updatedPerson : person
               )
             );
+          })
+          .catch((error) => {
+            setMessage(
+              `${newPerson.name} has already been removed from server`
+            );
+            setNotification('error');
+            setTimeout(() => {
+              setMessage(null);
+              setNotification('');
+            }, 3000);
           });
       }
     } else {
       contactService
         .createContact(newPerson)
         .then((newContact) => setPersons([...persons, newContact]));
+      setMessage(`${newPerson.name} has been successfully added`);
+      setNotification('success');
+
+      setTimeout(() => {
+        setMessage(null);
+        setNotification('');
+      }, 3000);
     }
     setNewPerson({
       name: '',
@@ -73,6 +93,7 @@ function App() {
   return (
     <div>
       <h1>Phonebook</h1>
+      <Notification message={message} notification={notification} />
       <Filter handleSearch={handleSearch} />
       <h2>Add new Contact</h2>
       <NewContactForm
