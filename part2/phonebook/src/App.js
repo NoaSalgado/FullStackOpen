@@ -1,15 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Filter from './components/Filter';
 import NewContactForm from './components/NewContactForm';
 import Contacts from './components/Contacts';
+import contactService from './services/contact';
 
 function App() {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456' },
-    { name: 'Ada Lovelace', number: '39-44-5323523' },
-    { name: 'Dan Abramov', number: '12-43-234345' },
-    { name: 'Mary Poppendieck', number: '39-23-6423122' },
-  ]);
+  const [persons, setPersons] = useState([]);
   const [newPerson, setNewPerson] = useState({
     name: '',
     number: '',
@@ -18,24 +14,53 @@ function App() {
 
   const personsToShow = filteredPersons.length > 0 ? filteredPersons : persons;
 
+  useEffect(() => {
+    contactService.getContacts().then((contacts) => setPersons(contacts));
+  }, []);
+
   const handleInputChange = (e) => {
     setNewPerson({ ...newPerson, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const personExists =
-      persons.filter((person) => person.name === newPerson.name).length > 0;
+    const personExists = persons.find(
+      (person) => person.name === newPerson.name
+    );
 
     if (personExists) {
-      alert(`${newPerson.name} is already added to phonebook`);
+      if (
+        window.confirm(
+          `${newPerson.name} already added to phonebook, replace the old number with a new one?`
+        )
+      ) {
+        contactService
+          .updateContact(personExists.id, newPerson)
+          .then((updatedPerson) => {
+            setPersons(
+              persons.map((person) =>
+                person.id === personExists.id ? updatedPerson : person
+              )
+            );
+          });
+      }
     } else {
-      setPersons([...persons, newPerson]);
+      contactService
+        .createContact(newPerson)
+        .then((newContact) => setPersons([...persons, newContact]));
     }
     setNewPerson({
       name: '',
       number: '',
     });
+  };
+
+  const deleteContact = (id, name) => {
+    if (window.confirm(`Delete ${name}`)) {
+      contactService.deleteContact(id).then(() => {
+        setPersons(persons.filter((person) => person.id !== id));
+      });
+    }
   };
 
   const handleSearch = (e) => {
@@ -56,7 +81,11 @@ function App() {
         newPerson={newPerson}
       />
       <h2>Numbers</h2>
-      <Contacts personsToShow={personsToShow} />
+      {personsToShow ? (
+        <Contacts personsToShow={personsToShow} deleteContact={deleteContact} />
+      ) : (
+        ''
+      )}
     </div>
   );
 }
